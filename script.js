@@ -6,7 +6,7 @@ const BANCO_PALABRAS = [
     { palabra: "BOTA", descripcion: "El calzado especial que nos ponemos en los pies, que a veces tiene tacos para no resbalar en el césped." },
     { palabra: "PETO", descripcion: "Prenda de ropa sin mangas de colores llamativos que nos ponemos encima de la camiseta para hacer equipos en el entreno." },
     { palabra: "BALON", descripcion: "El objeto más importante del fútbol; es redondo, rueda, bota y todos queremos darle patadas." },
-    { palabra: "COACH", descripcion: "El míster o entrenador que se sienta en el banquillo, nos enseña tácticas y nos ayuda a mejorar." },
+    { palabra: "TACOS", descripcion: "Las piezas de goma o metal en la suela de las botas que evitan resbalar en el césped." },
     { palabra: "RED", descripcion: "Malla de hilos que está colgada detrás de las porterías para frenar el balón cuando metemos un gol." },
     { palabra: "CONO", descripcion: "Objeto de plástico que el mister coloca en el suelo del entrenamiento para hacer zig-zag o marcar las porterías pequeñas." },
     { palabra: "AGUA", descripcion: "Lo que bebemos de nuestra botella durante los descansos para hidratarnos y recuperar fuerzas." },
@@ -19,14 +19,14 @@ const BANCO_PALABRAS = [
     { palabra: "GRADA", descripcion: "El lugar del estadio o del polideportivo donde se sientan los papás y mamás a animarnos con fuerza." },
     { palabra: "EQUIPO", descripcion: "Grupo de amigos que juegan juntos vistiendo la misma camiseta para ayudarse y divertirse." },
     { palabra: "CLUB", descripcion: "La escuela de fútbol a la que pertenecemos, que tiene un escudo bonito y unos colores que defendemos." },
-    { palabra: "CHUTE", descripcion: "Golpear el balón muy fuerte con el empeine del pie apuntando directamente a la portería contraria." },
+    { palabra: "GOLPE", descripcion: "Darle al balón con el pie con fuerza para enviarlo lejos o directamente a portería." },
     { palabra: "CORNER", descripcion: "Saque que se hace con el pie desde la esquina del campo cuando el rival tira el balón detrás de su portería." },
     { palabra: "MANO", descripcion: "Falta que comete cualquier jugador (menos el portero) si toca el balón con el brazo durante el partido." },
     { palabra: "LIGA", descripcion: "La competición donde jugamos muchos partidos cada fin de semana para sumar puntos y divertirnos." },
     { palabra: "COPA", descripcion: "El trofeo brillante que le dan a los campeones de un torneo al final del día. ¡Mola mucho levantarla!" },
-    { palabra: "BOTAS", descripcion: "Tus zapatillas de fútbol con tacos que debes llevar siempre bien atadas para no caerte al correr." },
+    { palabra: "BANDA", descripcion: "Cada uno de los lados del campo por donde suben los extremos para centrar el balón al área." },
     { palabra: "ZURDO", descripcion: "Jugador que maneja mejor la pierna izquierda para chutar, pasar y regatear." },
-    { palabra: "PETOS", descripcion: "Ropa de entrenamiento que usamos para dividirnos en dos equipos (por ejemplo, los azules contra los amarillos)." },
+    { palabra: "MEDIA", descripcion: "Prenda que cubre la pierna desde el pie hasta la rodilla, debajo de las espinilleras." },
     { palabra: "LINEA", descripcion: "Las marcas blancas pintadas en el suelo que delimitan el campo. Si el balón sale de ahí, es fuera." },
     { palabra: "SAQUE", descripcion: "Poner el balón en juego otra vez, ya sea con las manos desde la banda o con el pie desde el centro." },
     { palabra: "SILBO", descripcion: "El sonido fuerte que hace el silbato del árbitro para detener el juego cuando hay una falta." },
@@ -47,7 +47,12 @@ const juegoDelDia = BANCO_PALABRAS[indicePalabra];
 const palabraDelDia = juegoDelDia.palabra.toUpperCase();
 const TAMANO_PALABRA = palabraDelDia.length; 
 
-const INTENTOS_TOTALES = 5; 
+function calcularIntentos(longitud) {
+    if (longitud <= 3) return 4;
+    if (longitud >= 6) return 6;
+    return 5;
+}
+const INTENTOS_TOTALES = calcularIntentos(TAMANO_PALABRA); 
 let filaActual = 0;
 let letraActual = 0;
 let intentoActual = ""; 
