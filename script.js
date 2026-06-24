@@ -1,6 +1,3 @@
-// ==========================================
-// 1. BANCO DE 30 PALABRAS DE FÚTBOL PARA NIÑOS
-// ==========================================
 const BANCO_PALABRAS = [
     { palabra: "GOL", descripcion: "¡La mayor alegría del partido! Ocurre cuando el balón cruza la línea de la portería dentro de la red." },
     { palabra: "BOTA", descripcion: "El calzado especial que nos ponemos en los pies, que a veces tiene tacos para no resbalar en el césped." },
@@ -34,56 +31,119 @@ const BANCO_PALABRAS = [
     { palabra: "CRACK", descripcion: "Ese jugador o jugadora que se esfuerza al máximo, ayuda a sus compañeros y hace una jugada espectacular." }
 ];
 
-// ==========================================
-// 2. SELECCIÓN AUTOMÁTICA POR CALENDARIO
-// ==========================================
 const hoy = new Date();
-const diaDelMes = hoy.getDate(); 
+const fechaStr = hoy.toISOString().split('T')[0];
+const diaDelMes = hoy.getDate();
 
-// Selecciona la palabra según el día del mes actual (del 0 al 29)
 const indicePalabra = (diaDelMes - 1) % BANCO_PALABRAS.length;
 const juegoDelDia = BANCO_PALABRAS[indicePalabra];
 
 const palabraDelDia = juegoDelDia.palabra.toUpperCase();
-const TAMANO_PALABRA = palabraDelDia.length; 
+const TAMANO_PALABRA = palabraDelDia.length;
 
 function calcularIntentos(longitud) {
     if (longitud <= 3) return 4;
     if (longitud >= 6) return 6;
     return 5;
 }
-const INTENTOS_TOTALES = calcularIntentos(TAMANO_PALABRA); 
+const INTENTOS_TOTALES = calcularIntentos(TAMANO_PALABRA);
+
 let filaActual = 0;
 let letraActual = 0;
-let intentoActual = ""; 
+let intentoActual = "";
 let juegoTerminado = false;
+let juegoGanado = false;
+let animando = false;
+let intentosPrevios = [];
+let resultadosPrevios = [];
+let estadoTeclado = {};
 
-// Configuración del teclado en pantalla
 const distribucionTeclado = [
     ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],
     ["A", "S", "D", "F", "G", "H", "J", "K", "L", "Ñ"],
     ["ENTER", "Z", "X", "C", "V", "B", "N", "M", "BORRAR"]
 ];
 
-// ==========================================
-// 3. INICIALIZACIÓN (DOM)
-// ==========================================
-window.addEventListener("DOMContentLoaded", () => {
-    document.getElementById("pista-texto").textContent = juegoDelDia.descripcion;
-    generarTablero();
-    generarTeclado();
-});
+const CLAVE_GUARDADO = "palabra-dia-spb";
 
-// Genera la cuadrícula vacía adaptada al tamaño de la palabra
+function guardarEstado() {
+    try {
+        localStorage.setItem(CLAVE_GUARDADO, JSON.stringify({
+            date: fechaStr,
+            wordIndex: indicePalabra,
+            filaActual,
+            letraActual,
+            intentoActual,
+            intentosPrevios,
+            resultadosPrevios,
+            juegoTerminado,
+            juegoGanado,
+            estadoTeclado
+        }));
+    } catch (_) {}
+}
+
+function cargarEstado() {
+    try {
+        const raw = localStorage.getItem(CLAVE_GUARDADO);
+        if (!raw) return null;
+        const estado = JSON.parse(raw);
+        if (estado.date !== fechaStr || estado.wordIndex !== indicePalabra) {
+            localStorage.removeItem(CLAVE_GUARDADO);
+            return null;
+        }
+        return estado;
+    } catch (_) {
+        return null;
+    }
+}
+
+function mostrarNotificacion(mensaje, duracionMs = 2000) {
+    const notif = document.getElementById('notificacion');
+    if (!notif) return;
+    notif.textContent = mensaje;
+    notif.classList.add('visible');
+    clearTimeout(notif._timeout);
+    notif._timeout = setTimeout(() => {
+        notif.classList.remove('visible');
+    }, duracionMs);
+}
+
+function actualizarTeclaVisual(letra, estado) {
+    const pesos = { gris: 0, amarillo: 1, verde: 2 };
+    const actual = estadoTeclado[letra] || "gris";
+    if (pesos[estado] <= pesos[actual]) return;
+    estadoTeclado[letra] = estado;
+    const botones = document.querySelectorAll('.tecla');
+    for (const btn of botones) {
+        if (btn.textContent === letra) {
+            btn.className = 'tecla';
+            if (letra === "ENTER" || letra === "BORRAR") btn.classList.add('tecla-ancha');
+            btn.classList.add(`tecla-${estado}`);
+        }
+    }
+}
+
+function aplicarEstadosTeclado(estados) {
+    for (const [letra, estado] of Object.entries(estados)) {
+        const botones = document.querySelectorAll('.tecla');
+        for (const btn of botones) {
+            if (btn.textContent === letra) {
+                btn.className = 'tecla';
+                if (letra === "ENTER" || letra === "BORRAR") btn.classList.add('tecla-ancha');
+                btn.classList.add(`tecla-${estado}`);
+            }
+        }
+    }
+}
+
 function generarTablero() {
     const contenedorTablero = document.getElementById("tablero");
-    contenedorTablero.innerHTML = ""; // Limpia por seguridad
-
+    contenedorTablero.innerHTML = "";
     for (let f = 0; f < INTENTOS_TOTALES; f++) {
         let capaFila = document.createElement("div");
         capaFila.classList.add("fila");
         capaFila.id = `fila-${f}`;
-        
         for (let l = 0; l < TAMANO_PALABRA; l++) {
             let capaCuadrado = document.createElement("div");
             capaCuadrado.classList.add("cuadrado");
@@ -93,10 +153,29 @@ function generarTablero() {
     }
 }
 
-// Genera los botones del teclado virtual para el móvil
+function rellenarTablero() {
+    for (let f = 0; f < intentosPrevios.length; f++) {
+        const palabra = intentosPrevios[f];
+        const resultado = resultadosPrevios[f];
+        const filaHTML = document.getElementById(`fila-${f}`);
+        for (let l = 0; l < TAMANO_PALABRA; l++) {
+            const cuadrado = filaHTML.children[l];
+            cuadrado.textContent = palabra[l];
+            const clase = resultado[l] === "VERDE" ? "verde" : resultado[l] === "AMARILLO" ? "amarillo" : "gris";
+            cuadrado.classList.add(clase);
+        }
+    }
+    if (!juegoTerminado && letraActual > 0) {
+        const filaHTML = document.getElementById(`fila-${filaActual}`);
+        for (let l = 0; l < letraActual; l++) {
+            filaHTML.children[l].textContent = intentoActual[l];
+        }
+    }
+}
+
 function generarTeclado() {
     const contenedorTeclado = document.getElementById("teclado");
-    contenedorTeclado.innerHTML = ""; // Limpia por seguridad
+    contenedorTeclado.innerHTML = "";
 
     distribucionTeclado.forEach(filaLetras => {
         let capaFilaTeclado = document.createElement("div");
@@ -122,51 +201,68 @@ function generarTeclado() {
     });
 }
 
-// ==========================================
-// 4. CONTROL CENTRAL DE ACCIONES (PC y Móvil)
-// ==========================================
-function procesarEntradaLetra(tecla) {
-    if (juegoTerminado) return;
+function animarRevelacion(resultado) {
+    return new Promise(resolve => {
+        const filaHTML = document.getElementById(`fila-${filaActual}`);
+        let completados = 0;
 
-    // Acción: Comprobar palabra entera
+        for (let i = 0; i < TAMANO_PALABRA; i++) {
+            setTimeout(() => {
+                const tile = filaHTML.children[i];
+                const clase = resultado[i] === "VERDE" ? "verde" : resultado[i] === "AMARILLO" ? "amarillo" : "gris";
+                const color = resultado[i] === "VERDE" ? "#538d4e" : resultado[i] === "AMARILLO" ? "#b59f3b" : "#3a3a3c";
+
+                tile.style.setProperty('--color-final', color);
+                tile.classList.add('flip');
+
+                tile.addEventListener('animationend', () => {
+                    tile.classList.add(clase);
+                    tile.classList.remove('flip');
+                    completados++;
+                    if (completados === TAMANO_PALABRA) resolve();
+                }, { once: true });
+            }, i * 200);
+        }
+    });
+}
+
+function procesarEntradaLetra(tecla) {
+    if (juegoTerminado || animando) return;
+
     if (tecla === "ENTER") {
         if (intentoActual.length === TAMANO_PALABRA) {
             comprobarPalabra();
         } else {
-            alert(`¡La palabra de hoy tiene exactamente ${TAMANO_PALABRA} letras!`);
+            const fila = document.getElementById(`fila-${filaActual}`);
+            fila.classList.add('shake');
+            setTimeout(() => fila.classList.remove('shake'), 300);
+            mostrarNotificacion(`La palabra tiene ${TAMANO_PALABRA} letras`);
         }
         return;
     }
 
-    // Acción: Borrar letra anterior
     if (tecla === "BORRAR" || tecla === "BACKSPACE" || tecla === "DELETE") {
         if (letraActual > 0) {
             letraActual--;
             intentoActual = intentoActual.slice(0, -1);
-            
-            let filaHTML = document.getElementById(`fila-${filaActual}`);
-            let cuadrado = filaHTML.children[letraActual];
-            cuadrado.textContent = "";
+            document.getElementById(`fila-${filaActual}`).children[letraActual].textContent = "";
+            guardarEstado();
         }
         return;
     }
 
-    // Acción: Añadir letra ordinaria
     if (tecla.length === 1 && /^[A-ZÑÁÉÍÓÚÜ]$/.test(tecla)) {
         if (letraActual < TAMANO_PALABRA) {
             intentoActual += tecla;
-            
-            let filaHTML = document.getElementById(`fila-${filaActual}`);
-            let cuadrado = filaHTML.children[letraActual];
-            cuadrado.textContent = tecla;
-            
+            document.getElementById(`fila-${filaActual}`).children[letraActual].textContent = tecla;
             letraActual++;
+            guardarEstado();
         }
     }
 }
 
-// Capturador del teclado físico para cuando jueguen en PC
 window.addEventListener("keydown", (evento) => {
+    if (evento.ctrlKey || evento.metaKey || evento.altKey) return;
     let teclaFisica = evento.key.toUpperCase();
     if (teclaFisica === "BACKSPACE" || teclaFisica === "DELETE") {
         teclaFisica = "BORRAR";
@@ -174,45 +270,48 @@ window.addEventListener("keydown", (evento) => {
     procesarEntradaLetra(teclaFisica);
 });
 
-// ==========================================
-// 5. VALIDACIÓN DE LÓGICA Y COLORES
-// ==========================================
 function comprobarPalabra() {
-    let filaHTML = document.getElementById(`fila-${filaActual}`);
     const resultado = validarIntento(intentoActual, palabraDelDia);
-    
-    // Pinta cada cuadrado con su color correspondiente
-    for (let i = 0; i < TAMANO_PALABRA; i++) {
-        let cuadrado = filaHTML.children[i];
-        if (resultado[i] === "VERDE") cuadrado.classList.add("verde");
-        else if (resultado[i] === "AMARILLO") cuadrado.classList.add("amarillo");
-        else cuadrado.classList.add("gris");
-    }
+    animando = true;
 
-    // Comprobar victoria o derrota
-    if (intentoActual === palabraDelDia) {
-        alert("¡Espectacular! Has acertado la palabra del día. 🎯⚽");
-        juegoTerminado = true;
-    } else {
-        if (filaActual === INTENTOS_TOTALES - 1) {
-            alert(`Fin del juego. La palabra correcta era: ${palabraDelDia}`);
-            juegoTerminado = true;
-        } else {
-            filaActual++;    
-            letraActual = 0; 
-            intentoActual = ""; 
+    animarRevelacion(resultado).then(() => {
+        animando = false;
+
+        intentosPrevios.push(intentoActual);
+        resultadosPrevios.push(resultado);
+
+        for (let i = 0; i < TAMANO_PALABRA; i++) {
+            const letra = intentoActual[i];
+            const estado = resultado[i] === "VERDE" ? "verde" : resultado[i] === "AMARILLO" ? "amarillo" : "gris";
+            actualizarTeclaVisual(letra, estado);
         }
-    }
+
+        if (intentoActual === palabraDelDia) {
+            juegoTerminado = true;
+            juegoGanado = true;
+            mostrarNotificacion("Espectacular! Has acertado", 3000);
+            mostrarBotonCompartir();
+            guardarEstado();
+        } else if (filaActual >= INTENTOS_TOTALES - 1) {
+            juegoTerminado = true;
+            mostrarNotificacion(`Fin. La palabra era: ${palabraDelDia}`, 4000);
+            mostrarBotonCompartir();
+            guardarEstado();
+        } else {
+            filaActual++;
+            letraActual = 0;
+            intentoActual = "";
+            guardarEstado();
+        }
+    });
 }
 
-// Algoritmo preciso para calcular verdes y amarillos sin repetir letras de más
 function validarIntento(intento, correcta) {
     let arrayIntento = intento.split("");
     let arrayCorrecta = correcta.split("");
-    let resultado = new Array(TAMANO_PALABRA).fill("GRIS"); 
+    let resultado = new Array(TAMANO_PALABRA).fill("GRIS");
     let copiaCorrecta = [...arrayCorrecta];
 
-    // Primera pasada: Buscar las letras correctas en el sitio correcto (Verdes)
     for (let i = 0; i < TAMANO_PALABRA; i++) {
         if (arrayIntento[i] === arrayCorrecta[i]) {
             resultado[i] = "VERDE";
@@ -221,9 +320,8 @@ function validarIntento(intento, correcta) {
         }
     }
 
-    // Segunda pasada: Buscar las letras que existen pero están descolocadas (Amarillos)
     for (let i = 0; i < TAMANO_PALABRA; i++) {
-        if (arrayIntento[i] === null) continue; 
+        if (arrayIntento[i] === null) continue;
         let idx = copiaCorrecta.indexOf(arrayIntento[i]);
         if (idx !== -1) {
             resultado[i] = "AMARILLO";
@@ -232,3 +330,56 @@ function validarIntento(intento, correcta) {
     }
     return resultado;
 }
+
+function mostrarBotonCompartir() {
+    if (document.getElementById('compartir-boton')) return;
+    const contenedor = document.getElementById('compartir-contenedor');
+    const btn = document.createElement('button');
+    btn.id = 'compartir-boton';
+    btn.textContent = 'Compartir resultado';
+    btn.addEventListener('click', () => {
+        const numIntento = juegoGanado ? intentosPrevios.length : "X";
+        let texto = `Palabra del Dia #${indicePalabra + 1} ${numIntento}/${INTENTOS_TOTALES}\n\n`;
+        for (const res of resultadosPrevios) {
+            for (const r of res) {
+                texto += r === "VERDE" ? "🟩" : r === "AMARILLO" ? "🟨" : "⬛";
+            }
+            texto += "\n";
+        }
+        navigator.clipboard.writeText(texto).then(() => {
+            mostrarNotificacion("Resultado copiado!");
+        }).catch(() => {
+            mostrarNotificacion("No se pudo copiar");
+        });
+    });
+    contenedor.appendChild(btn);
+}
+
+window.addEventListener("DOMContentLoaded", () => {
+    const estadoGuardado = cargarEstado();
+
+    if (estadoGuardado) {
+        filaActual = estadoGuardado.filaActual;
+        letraActual = estadoGuardado.letraActual;
+        intentoActual = estadoGuardado.intentoActual;
+        intentosPrevios = estadoGuardado.intentosPrevios;
+        resultadosPrevios = estadoGuardado.resultadosPrevios;
+        juegoTerminado = estadoGuardado.juegoTerminado;
+        juegoGanado = estadoGuardado.juegoGanado;
+        estadoTeclado = estadoGuardado.estadoTeclado;
+
+        document.getElementById("pista-texto").textContent = juegoDelDia.descripcion;
+        generarTablero();
+        rellenarTablero();
+        generarTeclado();
+        aplicarEstadosTeclado(estadoTeclado);
+
+        if (juegoTerminado) {
+            mostrarBotonCompartir();
+        }
+    } else {
+        document.getElementById("pista-texto").textContent = juegoDelDia.descripcion;
+        generarTablero();
+        generarTeclado();
+    }
+});
